@@ -49,6 +49,7 @@ class CreateTree:
         self.labels = labels
         self.outLabelNum = [data[-1] for data in self.dataSet]
         self.attribute = attribute
+        self.tree = {}
 
     # 获得 dataSet 某一 label 的键值对
     # 已验证
@@ -62,7 +63,7 @@ class CreateTree:
     def checkIsOneCateg(self):
         flag = ''
         if len(self.getNum(-1)) == 1:  # getNum(-1)?
-            flag = list(self.getNum(-1).keys())[0]
+            flag = self.getNum(-1)[0]
         return flag
 
     # 判断 labels是否为空集 或者 dataSet在 labels上取值相同
@@ -131,70 +132,48 @@ class CreateTree:
         # print("gain_radio: " + str(gain / iv))
         return gain / iv
 
-        # 获得最优划分属性
-
     # 找到信息增益率最大的属性
-    def getBestAttr(self, e):
-        gainRadioMax = max([self.calcGainRadio(self.dataSet, attr)
-                            for attr in self.labels])
-        # 如果最大信息增益率比阈值小，则返回 实例数最大的类
-        if gainRadioMax < e:
-            return sorted(self.getNum(-1))[0]
+    def getBestAttr(self):
+        gainRadioMax = max([self.calcGainRadio(attr) for attr in self.labels[1:]])
+        for i in range(1, len(self.labels) - 1):
+            if self.calcGainRadio(self.labels[i]) == gainRadioMax:
+                bestGainRadioAtrr = labels[i]
+                return bestGainRadioAtrr
 
     # 入口函数
     def run(self, e):
         # 输入数据集D， 特征集A， 阈值e
         t = CreateTree(dataSet, labels)
         # 如果 D中所有实例属于同一类Ck，则讲该结点标记为C类叶结点
-        if t.checkIsOneCateg() != '':
-            return t.checkIsOneCateg()
-        # 如果
-        elif t.checkIsSame() != '':
-            return t.checkIsSame()
+        if t.checkIsOneCateg() != '' or t.checkIsSame() != '':
+            self.tree['name'] = t.checkIsOneCateg()
+            self.tree['dataSet'] = dataSet
+        # 如果最大信息增益率比阈值小，则返回 实例数最大的类
+        elif max([self.calcGainRadio(attr) for attr in self.labels[1:]]) < e:
+            self.tree['name'] = t.checkIsOneCateg()
+            self.tree['dataSet'] = dataSet
         else:
             # 获得最优划分属性
-            print('ok')
-            t = CreateTree(self.dataSet, self.labels)
+            bestGainRadioAttr = self.getBestAttr()
+            bestGainRadioAttrIndex = self.labels.index(bestGainRadioAttr)
+            bestGainRadioAttrList = list(set([data[bestGainRadioAttrIndex] for data in self.dataSet]))  # 属性的值列表
+            newDic = {}
+            for x in bestGainRadioAttrList:
+                t = CreateTree()
+                newDataSet = [data for data in self.dataSet if data[bestGainRadioAttrIndex] == x]
+                newLabels = self.labels[:].remove(bestGainRadioAttr)
+                newDic[x] = t.run(newDataSet, newLabels, e)
+                self.tree[x] = newDic
+        return  self.tree
+
+
+
+
 
 
 if __name__ == '__main__':
     t = CreateTree(dataSet, labels)
-    t.calcGainRadio('颜色')
-    t.run(e)
-
-'''
-def chooseBestFeatureC45(dataSet, labels):
-    bestFeature = 0
-    initialEntropy = calcEntropy(dataSet)
-    biggestEntropyGR = 0
-    for i in range(len(labels)):
-       currentEntropy = 0
-       feature = [data[i] for data in dataSet]
-    entropyFeature = calcEntropyForFeature(feature)
-    subSet = splitDataSetByFeature(i, dataSet)
-    totalN = len(feature)
-    for key in subSet:
-       prob = len(subSet[key]) / totalN
-    currentEntropy += prob * calcEntropy(subSet[key])
-    entropyGain = initialEntropy - currentEntropy
-    entropyGainRatio = entropyGain / entropyFeature
-    if(biggestEntropyGR < entropyGainRatio):
-        biggestEntropyGR = entropyGainRatio
-    bestFeature = i
-    return bestFeature
-
-
-
-def majorityCateg(newDataSet):
-    categCount = {}
-    categList = [data[-1] for data in newDataSet]
-    for c in categList:
-       if c not in categCount:
-           categCount[c] = 1
-       else:
-           categCount[c] += 1
-    sortedCateg = sorted(categCount.items(), key = lambda x:x[1], reverse =
-       True)
-    return sortedCateg[0][0]         
-
-'''
+    # t.calcGainRadio('颜色')
+    tree = t.run(e)
+    print(tree)
+    print('nice')

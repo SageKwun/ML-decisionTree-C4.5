@@ -18,7 +18,7 @@ import math
 # labels = ['round', 'red']
 
 # 阈值
-e = 0.5
+e = 0.1
 
 dataSet = [[1, "青绿", "蜷缩", "浊响", "清晰", "凹陷", "硬滑", 1],
            [2, "乌黑", "蜷缩", "闷沉", "清晰", "凹陷", "硬滑", 1],
@@ -55,15 +55,17 @@ class CreateTree:
     # 已验证
     def getNum(self, index):
         keys = [data[index] for data in self.dataSet]
-        values = [keys.count(x) for x in keys]
-        return dict(zip(keys, values))
+        keysList = list(set(keys))
+        values = [keys.count(x) for x in keysList]
+        return dict(zip(keysList, values))
 
     # 判断 数据集DataSet 中的所有实例是否为同一类
     # 如果是，则返回 类；不是，返回 ''
     def checkIsOneCateg(self):
         flag = ''
         if len(self.getNum(-1)) == 1:  # getNum(-1)?
-            flag = self.getNum(-1)[0]
+            # print("fla: " + str(self.getNum(-1)))
+            flag = list(self.getNum(-1).keys())[0]
         return flag
 
     # 判断 labels是否为空集 或者 dataSet在 labels上取值相同
@@ -71,14 +73,15 @@ class CreateTree:
     def checkIsSame(self):
         flag = ''
         # 判断是否为空集
-        if len(self.labels) == 0:
+        if len(self.labels) == 1:
             # 返回最多的类
             flag = sorted(self.getNum(-1))[0]
             return flag
         else:
             # 判断是否取值相同
-            for i in range(len(labels)):
-                if len(set([data[i] for data in self.dataSet])) == 1:
+            for i in range(1, len(self.labels)):
+                # if len(set([data[i] for data in self.dataSet])) == 1:
+                if len(self.getNum(i)) == 1:
                     flag = sorted(self.getNum(-1))[0]
                     return flag
         return flag
@@ -106,74 +109,111 @@ class CreateTree:
         for key in labelNum:
             p = labelNum[key] / totalNum
             entropy -= p * math.log2(p)
-        print('ent: ' + str(entropy))
+        # print('ent: ' + str(entropy))
         return entropy
 
     # 计算 某一属性 信息增益率
     def calcGainRadio(self, attr):
         gain = self.calcEntropy(self.dataSet)  # 总信息熵
         iv = 0
-        attrIndex = labels.index(attr)  # 属性的列索引
+        attrIndex = self.labels.index(attr)  # 属性的列索引
         attrValueList = list(set([data[attrIndex] for data in self.dataSet]))  # 属性值
         newDataSets = []
-        for x in attrValueList:
-            newDataSets.append([data for data in self.dataSet if data[attrIndex] == x])  # 按照attr划分的新的数据集的列表
-        lenD = len(self.dataSet)  # 数据集的长度
-        for i in range(len(newDataSets)):
-            D_v = newDataSets[i]
+        if len(attrValueList) != 1:
+            for x in attrValueList:
+                newDataSets.append([data for data in self.dataSet if data[attrIndex] == x])  # 按照attr划分的新的数据集的列表
+            lenD = len(self.dataSet)  # 数据集的长度
+            for i in range(len(newDataSets)):
+                D_v = newDataSets[i]
+                # 验证，正确
+                # print("len(D_v): " + str(len(D_v)))
+                # print("self.calcEntropy(D_v): " + str(self.calcEntropy(D_v)))
+                gain -= len(D_v) / lenD * self.calcEntropy(D_v)
+                iv -= len(D_v) / lenD * math.log2(len(D_v) / lenD)
             # 验证，正确
-            # print("len(D_v): " + str(len(D_v)))
-            # print("self.calcEntropy(D_v): " + str(self.calcEntropy(D_v)))
-            gain -= len(D_v) / lenD * self.calcEntropy(D_v)
-            iv -= len(D_v) / lenD * math.log2(len(D_v) / lenD)
-        # 验证，正确
-        # print("gain: " + str(gain))
-        # print("iv: " + str(iv))
-        # print("gain_radio: " + str(gain / iv))
-        return gain / iv
+            # print("gain: " + str(gain))
+            # print(self.dataSet)
+            # print(D_v)
+            # print("iv: " + str(iv))
+            # print("gain_radio: " + str(gain / iv))
+            return gain / iv
+        else:
+            return 0
 
     # 找到信息增益率最大的属性
     def getBestAttr(self):
         gainRadioMax = max([self.calcGainRadio(attr) for attr in self.labels[1:]])
-        for i in range(1, len(self.labels) - 1):
+        for i in range(1, len(self.labels)):
             if self.calcGainRadio(self.labels[i]) == gainRadioMax:
-                bestGainRadioAtrr = labels[i]
+                bestGainRadioAtrr = self.labels[i]
                 return bestGainRadioAtrr
 
     # 入口函数
     def run(self, e):
         # 输入数据集D， 特征集A， 阈值e
-        t = CreateTree(dataSet, labels)
+        # t = CreateTree(self.dataSet, self.labels)
         # 如果 D中所有实例属于同一类Ck，则讲该结点标记为C类叶结点
-        if t.checkIsOneCateg() != '' or t.checkIsSame() != '':
-            self.tree['name'] = t.checkIsOneCateg()
-            self.tree['dataSet'] = dataSet
+        if self.checkIsOneCateg() != '' or self.checkIsSame() != '':
+            self.tree['name'] = self.checkIsOneCateg()
+            self.tree['dataSet'] = self.dataSet
+            # self.tree['attribute'] = self.attribute
         # 如果最大信息增益率比阈值小，则返回 实例数最大的类
+
         elif max([self.calcGainRadio(attr) for attr in self.labels[1:]]) < e:
-            self.tree['name'] = t.checkIsOneCateg()
-            self.tree['dataSet'] = dataSet
+            # print("max: " + str(max([self.calcGainRadio(attr) for attr in self.labels[1:]])))
+            self.tree['name'] = self.checkIsOneCateg()
+            self.tree['dataSet'] = self.dataSet
+            # self.tree['attribute'] = self.attribute
         else:
             # 获得最优划分属性
             bestGainRadioAttr = self.getBestAttr()
+            # print(self.dataSet)
+            # print(self.labels)
+            # print(bestGainRadioAttr)
+
             bestGainRadioAttrIndex = self.labels.index(bestGainRadioAttr)
+
             bestGainRadioAttrList = list(set([data[bestGainRadioAttrIndex] for data in self.dataSet]))  # 属性的值列表
             newDic = {}
+            self.tree['attribute'] = bestGainRadioAttr
             for x in bestGainRadioAttrList:
-                t = CreateTree()
-                newDataSet = [data for data in self.dataSet if data[bestGainRadioAttrIndex] == x]
-                newLabels = self.labels[:].remove(bestGainRadioAttr)
-                newDic[x] = t.run(newDataSet, newLabels, e)
-                self.tree[x] = newDic
-        return  self.tree
+                newDataSet = [data[:bestGainRadioAttrIndex] + data[bestGainRadioAttrIndex + 1:] for data in self.dataSet
+                              if data[bestGainRadioAttrIndex] == x]
+                newLabels = self.labels[:]
+                newLabels.remove(bestGainRadioAttr)
+                # print('la: ' + str(newLabels))
+                # print('da: ' + str(newDataSet))
+                newt = CreateTree(newDataSet, newLabels, attribute=bestGainRadioAttr)
+                newt.run(e)
+                self.tree[x] = newt.tree
 
 
-
-
+def printDic(dic, layer, value=None):
+    if value is not None:
+        print(" " * layer + str(value) + " " + str(dic['attribute']))
+    else:
+        print(" " * layer + str(dic['attribute']))
+    # 该结点内部结点
+    if 'name' not in list(dic.keys()):
+        subList = list(dic.keys())
+        subList.remove('attribute')
+        for x in subList:
+            # value是叶结点
+            if 'name' in list(dic[x].keys()):
+                print(" " * (layer + 2) + str(x) + " " + str(dic[x]['name']))
+            # value内部结点
+            else:
+                printDic(dic[x], layer + 2, value=x)
+    # 该结点叶结点
+    else:
+        print(" " * (layer + 2) + str(value) + " " + str(dict['name']))
 
 
 if __name__ == '__main__':
     t = CreateTree(dataSet, labels)
     # t.calcGainRadio('颜色')
-    tree = t.run(e)
-    print(tree)
+
+    t.run(e)
+    printDic(t.tree, 0)
+
     print('nice')

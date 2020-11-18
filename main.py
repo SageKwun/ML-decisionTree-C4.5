@@ -174,7 +174,6 @@ class CreateTree:
             bestGainRadioAttrIndex = self.labels.index(bestGainRadioAttr)
 
             bestGainRadioAttrList = list(set([data[bestGainRadioAttrIndex] for data in self.dataSet]))  # 属性的值列表
-            newDic = {}
             self.tree['attribute'] = bestGainRadioAttr
             for x in bestGainRadioAttrList:
                 newDataSet = [data[:bestGainRadioAttrIndex] + data[bestGainRadioAttrIndex + 1:] for data in self.dataSet
@@ -190,7 +189,7 @@ class CreateTree:
 
 def printDic(dic, layer, value=None):
     if value is not None:
-        print(" " * layer + str(value) + " " + str(dic['attribute']))
+        print(" " * layer + str(value) + "\n" + " " * (layer + 2) + str(dic['attribute']))
     else:
         print(" " * layer + str(dic['attribute']))
     # 该结点内部结点
@@ -206,7 +205,7 @@ def printDic(dic, layer, value=None):
                 printDic(dic[x], layer + 2, value=x)
     # 该结点叶结点
     else:
-        print(" " * (layer + 2) + str(value) + " " + str(dict['name']))
+        print(" " * (layer + 2) + str(value) + "\n" + " " * (layer + 2) + str(dict['name']))
 
 
 if __name__ == '__main__':
